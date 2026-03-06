@@ -1,39 +1,17 @@
-# Respuestas a preguntas de análisis de la arquitectura entregada
+# Preguntas de Arquitectura de la API
 
-# Codigo a analizar
+``` 1. ¿Cómo escalaría esta API para soportar 1000 requests por segundo? ```
 
-    @Injectable()
-    export class OrdersService {
-        private orders = [];
-        create(order) {
-            this.orders.push(order);
-            return order;
-        }
-        findAll() {
-        return this.orders;
-        }
-        updateStatus(id, status) {
-        const order = this.orders.find(o => o.id === id);
-        order.status = status;
-        return order;
-        }
-    }
+    R: Si solo se pudiera contar con una sola instancia de esta API, modificaría las peticiones entrantes al backend para que todas se agregaran a una lista cada segundo o microsegundo, generando una o varias colas dependiendo de la petición necesaria, para no saturar el límite de PostgreSQL o el mismo equipo donde esté ejecutándose. En caso de poder contar con más instancias, mediante métodos propiciados por los gestores de Nginx, utilizaría repartición de carga, aprovechando la posibilidad de un escalamiento horizontal del sistema.
+    
+``` 2. ¿Qué cambios haría si el sistema creciera a millones de tareas? ```
 
-# Preguntas y respuestas
+    R: En esta situación, dentro de lo posible, utilizar escalamiento horizontal, sistemas de caching y, además, utilizar la opción que permite NestJS de utilizar Fastify; ya que, a diferencia de la pregunta anterior, este escenario demanda una combinación de técnicas; en este caso se utilizaría caching, optimización de recursos y escalamiento horizontal.
+    
+``` 3. ¿Cómo implementaría autenticación JWT en este sistema? ```
 
-``` 1. Identifique al menos 5 problemas de arquitectura o diseño. ```
+    R: Mediante la instalación del paquete, en este caso "@nestjs/jwt", y luego generando un Guard para que gestione las claves creadas para los usuarios ingresados; esto a nivel de diseño del flujo, ya que a nivel de desarrollo limitaría las peticiones de agregar, modificar y eliminar "tasks" a usuarios verificados.
 
-    R: 1. La función "updateStatus" no comprueba si existe previamente el identificador antes de operar, por lo que puede llegar a colapsar el sistema dando un "Can't set property to undefined".
-    2. Código interpretado en TypeScript, pero realmente es JavaScript puro, por lo que desperdicia las ventajas de utilizar NestJS.
-    3. Faltan DTOs; es decir, no existen verificaciones de los datos necesarios, por lo que cualquier usuario puede crear una "order" con datos extras, una falla que afecta directamente a la seguridad del sistema y sus datos sensibles.
-    4. Al tener la línea "private orders = [];", las órdenes están vivas mientras el sistema siga vivo, por lo que, anidado al error 1, existen altas posibilidades de pérdida de órdenes cuando alguna contenga un identificador inexistente.
-    5. La función "findAll" entrega de forma íntegra el arreglo "orders" con el agregado de que puede modificar dicho arreglo, por lo que es una falla a la integridad de los datos de dichas órdenes generadas por los usuarios.
+``` 4. ¿Cómo manejaría procesamiento asincrónico para tareas pesadas? ```
 
-``` 2. Explique cómo refactorizaría esta implementación en un proyecto real de NestJS. ```
-
-    R: Por orden:
-    1. Generar un bloque try/catch para evitar la interrupción del sistema, donde, en caso de no existir dicho identificador, se agregue a la base de datos y se siga con el flujo natural del sistema.
-    2. Generar una interfaz donde se especifique el tipo de dato "order".
-    3. Agregar Pipes de validación para verificar los campos necesarios.
-    4. Enviar los datos a alguna base de datos, sea SQL o NoSQL, con tal de mantener dichos registros activos aun después de un apagado por mantenimiento del sistema.
-    5. Generar en una variable o en el mismo retorno una copia del mismo arreglo; así solo se modifica la copia y no el original.
+    R: Utilizando sistemas de gestores de colas como Redis o BullMQ, esto para evitar sobrecargas del sistema y un posible "memory overload" dando de baja momentáneamente el servicio que se esté ejecutando.
